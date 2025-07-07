@@ -32,82 +32,130 @@ CK = [
 ]
 
 def _rotl(x, n):
+    # _rotl 是循环左移函数，用于对 32 位整数左移 n 位
     return ((x << n) & 0xffffffff) | (x >> (32 - n))
 
 def _tau(a):
-    bytes_ = struct.pack('>I', a)
-    return struct.unpack('>I', bytes([SBOX[b] for b in bytes_]))[0]
+    # _tau 是非线性变换，使用 SBOX 对输入的每个字节进行替换
+    return struct.unpack('>I', bytes(SBOX[b] for b in struct.pack('>I', a)))[0]
 
 def _l(b):
+    # _l 是线性变换函数，用于加密过程中的扩散效果
     return b ^ _rotl(b, 2) ^ _rotl(b, 10) ^ _rotl(b, 18) ^ _rotl(b, 24)
 
 def _l_prime(b):
+    # _l_prime 是线性变换函数，用于密钥扩展阶段
     return b ^ _rotl(b, 13) ^ _rotl(b, 23)
 
 def _key_expansion(key):
+    # 根据密钥生成 32 个轮密钥
     MK = struct.unpack('>4I', key)
     K = [MK[i] ^ FK[i] for i in range(4)]
-    rk = []
     for i in range(32):
         temp = K[i+1] ^ K[i+2] ^ K[i+3] ^ CK[i]
         K.append(K[i] ^ _l_prime(_tau(temp)))
-        rk.append(K[i+4])
-    return rk
+    return K[4:]
 
-def _round(x0, x1, x2, x3, rk):
-    tmp = x1 ^ x2 ^ x3 ^ rk
-    return x0 ^ _l(_tau(tmp))
+def _round_func(x, rk):
+    # 实现加密解密的核心轮函数
+    return x[0] ^ _l(_tau(x[1] ^ x[2] ^ x[3] ^ rk))
 
-def encrypt_block(key, plaintext):
+def _crypt_block(key, block, decrypt=False):
+    # 实现单个 16 字节块的加密或解密过程
     rk = _key_expansion(key)
-    X = list(struct.unpack('>4I', plaintext))
-    for i in range(32):
-        X.append(_round(X[i], X[i+1], X[i+2], X[i+3], rk[i]))
-    return struct.pack('>4I', X[35], X[34], X[33], X[32])
-
-def decrypt_block(key, ciphertext):
-    rk = list(reversed(_key_expansion(key)))
-    X = list(struct.unpack('>4I', ciphertext))
-    for i in range(32):
-        X.append(_round(X[i], X[i+1], X[i+2], X[i+3], rk[i]))
-    return struct.pack('>4I', X[35], X[34], X[33], X[32])
+    if decrypt:
+        rk = rk[::-1]
+    X = list(struct.unpack('>4I', block))
+    for r in rk:
+        X.append(_round_func(X[-4:], r))
+    return struct.pack('>4I', X[-1], X[-2], X[-3], X[-4])
 
 def pad(data):
-    pad_len = 16 - (len(data) % 16)
+    # 实现 PKCS#7 填充
+    pad_len = 16 - len(data) % 16
     return data + bytes([pad_len] * pad_len)
 
 def unpad(data):
-    pad_len = data[-1]
-    return data[:-pad_len]
+    # 移除 PKCS#7 填充
+    return data[:-data[-1]]
+
+def _split_blocks(data):
+    # 将数据按 16 字节切分
+    return [data[i:i+16] for i in range(0, len(data), 16)]
 
 def encrypt_ecb(key, plaintext):
-    plaintext = pad(plaintext)
-    blocks = [plaintext[i:i+16] for i in range(0, len(plaintext), 16)]
-    return b''.join([encrypt_block(key, block) for block in blocks])
+    # ECB 模式加密
+    return b''.join(_crypt_block(key, blk) for blk in _split_blocks(pad(plaintext)))
 
 def decrypt_ecb(key, ciphertext):
-    blocks = [ciphertext[i:i+16] for i in range(0, len(ciphertext), 16)]
-    decrypted = b''.join([decrypt_block(key, block) for block in blocks])
+    # ECB 模式解密
+    decrypted = b''.join(_crypt_block(key, blk, decrypt=True) for blk in _split_blocks(ciphertext))
     return unpad(decrypted)
 
 def encrypt_cbc(key, plaintext, iv):
+    # CBC 模式加密
     plaintext = pad(plaintext)
-    blocks = [plaintext[i:i+16] for i in range(0, len(plaintext), 16)]
-    res = []
-    prev = iv
-    for block in blocks:
-        block = bytes([b1 ^ b2 for b1, b2 in zip(block, prev)])
-        enc = encrypt_block(key, block)
+    res, prev = [], iv
+    for blk in _split_blocks(plaintext):
+        blk_xor = bytes(a ^ b for a, b in zip(blk, prev))
+        enc = _crypt_block(key, blk_xor)
         res.append(enc)
         prev = enc
     return b''.join(res)
 
 def decrypt_cbc(key, ciphertext, iv):
-    blocks = [ciphertext[i:i+16] for i in range(0, len(ciphertext), 16)]
-    res = []
-    prev = iv
-    for block in blocks:
-        dec = decrypt_block(key, block)
-        res.append(bytes([b1 ^ b2 for b1, b2 in zip(dec, prev)]))
-        prev = block
+    # CBC 模式解密
+    res, prev = [], iv
+    for blk in _split_blocks(ciphertext):
+        dec = _crypt_block(key, blk, decrypt=True)
+        res.append(bytes(a ^ b for a, b in zip(dec, prev)))
+        prev = blk
+    return unpad(b''.join(res))
+
+def encrypt_ctr(key, plaintext, iv):
+    # CTR 模式加密/解密：相同函数
+    plaintext = pad(plaintext)
+    res, counter = [], int.from_bytes(iv, 'big')
+    for blk in _split_blocks(plaintext):
+        keystream = _crypt_block(key, counter.to_bytes(16, 'big'))
+        res.append(bytes(a ^ b for a, b in zip(blk, keystream)))
+        counter += 1
+    return b''.join(res)
+
+def decrypt_ctr(key, ciphertext, iv):
+    # CTR 模式解密与加密相同
+    return encrypt_ctr(key, ciphertext, iv)
+
+def encrypt_ofb(key, plaintext, iv):
+    # OFB 模式加密
+    plaintext = pad(plaintext)
+    res, output = [], iv
+    for blk in _split_blocks(plaintext):
+        output = _crypt_block(key, output)
+        res.append(bytes(a ^ b for a, b in zip(blk, output)))
+    return b''.join(res)
+
+def decrypt_ofb(key, ciphertext, iv):
+    # OFB 模式解密与加密相同
+    return encrypt_ofb(key, ciphertext, iv)
+
+def encrypt_cfb(key, plaintext, iv):
+    # CFB 模式加密：每次加密前一个密文块或 IV，然后和明文异或
+    plaintext = pad(plaintext)
+    res, prev = [], iv
+    for blk in _split_blocks(plaintext):
+        output = _crypt_block(key, prev)
+        enc = bytes(a ^ b for a, b in zip(blk, output))
+        res.append(enc)
+        prev = enc
+    return b''.join(res)
+
+def decrypt_cfb(key, ciphertext, iv):
+    # CFB 模式解密：加密前一个密文块或 IV，然后和密文异或得到明文
+    res, prev = [], iv
+    for blk in _split_blocks(ciphertext):
+        output = _crypt_block(key, prev)
+        dec = bytes(a ^ b for a, b in zip(blk, output))
+        res.append(dec)
+        prev = blk
     return unpad(b''.join(res))
