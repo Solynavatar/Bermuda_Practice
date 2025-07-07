@@ -113,31 +113,40 @@ def decrypt_cbc(key, ciphertext, iv):
     return unpad(b''.join(res))
 
 def encrypt_ctr(key, plaintext, iv):
-    # CTR 模式加密/解密：相同函数
-    plaintext = pad(plaintext)
+    # CTR模式加密/解密，流式加密，不使用填充
     res, counter = [], int.from_bytes(iv, 'big')
-    for blk in _split_blocks(plaintext):
+    length = len(plaintext)
+    offset = 0
+    while offset < length:
+        blk = plaintext[offset:offset+16]
         keystream = _crypt_block(key, counter.to_bytes(16, 'big'))
-        res.append(bytes(a ^ b for a, b in zip(blk, keystream)))
         counter += 1
+        # 只异或当前块长度，避免多余字节
+        res.append(bytes(a ^ b for a, b in zip(blk, keystream[:len(blk)])))
+        offset += 16
     return b''.join(res)
 
 def decrypt_ctr(key, ciphertext, iv):
-    # CTR 模式解密与加密相同
+    # CTR解密和加密相同
     return encrypt_ctr(key, ciphertext, iv)
 
 def encrypt_ofb(key, plaintext, iv):
-    # OFB 模式加密
-    plaintext = pad(plaintext)
+    # OFB模式加密，流式加密，不使用填充
     res, output = [], iv
-    for blk in _split_blocks(plaintext):
+    length = len(plaintext)
+    offset = 0
+    while offset < length:
+        blk = plaintext[offset:offset+16]
         output = _crypt_block(key, output)
-        res.append(bytes(a ^ b for a, b in zip(blk, output)))
+        # 只异或当前块长度，避免多余字节
+        res.append(bytes(a ^ b for a, b in zip(blk, output[:len(blk)])))
+        offset += 16
     return b''.join(res)
 
 def decrypt_ofb(key, ciphertext, iv):
-    # OFB 模式解密与加密相同
+    # OFB解密和加密相同
     return encrypt_ofb(key, ciphertext, iv)
+
 
 def encrypt_cfb(key, plaintext, iv):
     # CFB 模式加密：每次加密前一个密文块或 IV，然后和明文异或
