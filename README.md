@@ -1,4 +1,4 @@
-# 百慕大仓库's 练习
+# Bermuda Warehouse Exercise
 Homework for a course from July 7th to July 14th, 2025.
 ## Project 1
 Project 1: SM4的软件实现和优化
