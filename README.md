@@ -23,3 +23,5 @@ results目录包含了添加水印的结果watermarked.jpeg，提取的水印ext
 
 为original.jpeg添加白色水印文字“Solynavatar”的结果如下：
 ![项目2测试结果](./images/proj2test.jpeg '项目2测试结果')
+
+## Project3
