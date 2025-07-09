@@ -187,4 +187,4 @@ snarkjs groth16 verify verification_key.json public.json proof.json
 ```
 
 最终的结果如下：
-![项目3测试结果](./images/proj3test.png)
+![项目3测试结果](../images/proj3test.png)
