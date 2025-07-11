@@ -31,3 +31,13 @@ Project 3: 用circom实现poseidon2哈希算法的电路。
 内容详见：[Project3](./Project-3/readme.md)
 
 ## Project 4
+
+Project 4: SM3 的软件实现与优化。跟 SM4 一样，用 C 语言来做，然后不断改进效率
+
+内容详见：[Project4](./Project-4/readme.md)
+
+## Project 5
+
+Project 5: sm2 的软件实现优化。考虑到SM2用 C 语言来做比较复杂，大家看可以考虑用python来做 SM2 算法的基础实现以及各种算法的改进尝试
+
+内容详见：[Project5](./Project-5/readme.md)
