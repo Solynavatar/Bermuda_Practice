@@ -2,6 +2,22 @@
 
 Homework for a course from July 7th to July 14th, 2025.
 
+The experimental environment involved in this experiment is as follows:
+
+| Tools | Usage |
+| ---- | ---- |
+| Visual Studio Code | For debugging and synchronizing Github repository updates |
+| Pycharm 2025.1.1.1 | For testing some scripts quickly |
+| Python 3.12 | Used in Project 2, 3, 5 |
+| C++ 98 | Used in Project 1, 4 |
+| g++ 15.1.0 | Compiling C++ codes |
+| rustc 1.88.0* | Used in Project 3 |
+| cargo 1.88.0* | Used in Project 3 |
+| node.js 22.12.0* | Used in Project 3 |
+| circom 2.2.2* | Used in Project 3 |
+
+*tips: The above marked with " * " are installed in VMware's Ubuntu 22.04 virtual machine. The default OS is Windows 11.
+
 ## Project 1
 Project 1: SM4的软件实现和优化
 
