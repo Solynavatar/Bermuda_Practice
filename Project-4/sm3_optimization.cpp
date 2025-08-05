@@ -33,7 +33,7 @@ private:
         size_t bitLen = len * 8;
         size_t k = (448 - (bitLen + 1) % 512 + 512) % 512;
         size_t paddedLen = len + (k + 1 + 64) / 8;
-
+ 
         std::vector<uint8_t> res(paddedLen, 0);
         memcpy(res.data(), data, len);
         res[len] = 0x80;
